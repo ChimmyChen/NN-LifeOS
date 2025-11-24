@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inner Garden | NN's Life OS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sage: {
+                            50: '#f4f7f4',
+                            100: '#e3ebe3',
+                            200: '#c5d8c5',
+                            300: '#9bb99b',
+                            400: '#769c76',
+                            500: '#588158', 
+                            600: '#436643',
+                        },
+                        stone: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            300: '#d6d3d1',
+                            400: '#a8a29e',
+                            500: '#78716c',
+                            600: '#57534e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f2f4f2; 
+            color: #57534e; 
+            overscroll-behavior-y: none;
+            font-size: 16px; 
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transition: all 0.2s ease;
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+            transform: translateY(-1px);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #a8a29e;
+            cursor: pointer;
+            margin-top: -7px; 
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e7e5e4;
+            border-radius: 2px;
+        }
+
+        @keyframes floatPoints {
+            0% { opacity: 0; transform: translateY(5px); }
+            20% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        .point-float {
+            position: absolute;
+            color: #588158;
+            font-weight: 500;
+            font-size: 1.1rem;
+            pointer-events: none;
+            z-index: 50;
+            animation: floatPoints 1.2s ease-out forwards;
+            font-family: 'Courier New', Courier, monospace; 
+        }
+
+        .mood-btn.active {
+            transform: scale(1.2);
+            background-color: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .mood-btn {
+            opacity: 0.8;
+            transition: all 0.3s;
+            filter: grayscale(0); 
+        }
+        .mood-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        @keyframes magicPulse {
+            0% { border-color: #e3ebe3; }
+            50% { border-color: #9bb99b; }
+            100% { border-color: #e3ebe3; }
+        }
+        .manifest-btn {
+            animation: magicPulse 3s infinite ease-in-out;
+            border: 1px dashed #c5d8c5;
+        }
+
+        [contenteditable]:focus {
+            outline: none;
+            background-color: rgba(255,255,255,0.5);
+            border-bottom: 1px solid #a8a29e;
+        }
+        
+        [contenteditable]:empty:before {
+            content: attr(placeholder);
+            color: #d6d3d1;
+            font-style: italic;
+            display: block; 
+        }
+
+        .bare-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed #d6d3d1;
+            font-family: inherit;
+            color: #57534e;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .bare-input:focus {
+            border-bottom: 1px solid #a8a29e;
+        }
+
+        .project-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .project-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .project-scroll::-webkit-scrollbar-thumb {
+            background-color: #d6d3d1;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex justify-center pb-32 text-base">
+
+    <div class="max-w-md w-full space-y-6">
+        
+        <!-- Header -->
+        <header class="text-center pt-8 space-y-2">
+            <h1 class="text-xl font-light text-stone-600 tracking-[0.3em] uppercase">Inner Garden</h1>
+            <p class="text-sm text-stone-400 font-light tracking-widest">NN's Life OS</p>
+            <p id="dateDisplay" class="text-xs text-stone-300 font-mono tracking-wide mt-1"></p>
+        </header>
+
+        <!-- Sticky Points Bar -->
+        <div class="sticky top-6 z-40 transition-transform duration-300" id="pointsBar">
+            <div class="glass-card bg-white/90 px-6 py-4 flex justify-between items-center shadow-sm border-stone-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-stone-400"></div>
+                    <span class="text-xs text-stone-500 font-normal uppercase tracking-widest">Energy</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                    <span class="text-3xl font-light text-stone-600 font-mono" id="totalPoints">0</span>
+                    <span class="text-xs text-stone-400">pts</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. 耕耘区域 (Growth) -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between px-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sprout" class="w-4 h-4 text-stone-400"></i>
+                    <h2 class="text-xs font-bold text-stone-400 uppercase tracking-widest">Growth</h2>
+                </div>
+            </div>
+            
+            <!-- Dynamic Projects List -->
+            <div id="projects-container" class="space-y-4">
+                <!-- Projects injected here -->
+            </div>
+
+            <!-- Add Project Button -->
+            <button onclick="openProjectModal()" class="w-full py-3 rounded-xl border border-dashed border-stone-300 text-stone-400 text-sm hover:border-sage-400 hover:text-sage-500 hover:bg-white/50 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>添加新的长期任务 (Project)</span>
+            </button>
+
+            <!-- Hobbies (Dynamic) -->
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-stone-600 font-normal text-sm">兴趣滋养 (Hobbies)</span>
+                    <span class="bg-stone-100 text-stone-500 text-xs px-2 py-0.5 rounded-full">+20</span>
+                </div>
+                <!-- Hobby List -->
+                <div class="space-y-3" id="list-hobbies">
+                    <!-- Injected by JS -->
+                </div>
+                <!-- Add Hobby Button -->
+                <button onclick="addHobbyTask()" class="mt-4 w-full py-2 rounded-lg border border-dashed border-stone-200 text-xs text-stone-400 hover:text-sage-500 hover:border-sage-300 transition-all flex items-center justify-center gap-1 group">
+                    <i data-lucide="plus" class="w-3 h-3 group-hover:scale-110 transition-transform"></i>
+                    添加兴趣项
+                </button>
+            </div>
+
+            <!-- Reading (Daily Reset) -->
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-stone-600 font-normal text-sm">静谧阅读 (Reading)</span>
+                    <span class="bg-stone-100 text-stone-500 text-xs px-2 py-0.5 rounded-full">+30</span>
+                </div>
+                <button onclick="toggleReading()" id="reading-btn" class="w-full h-14 rounded-xl border border-stone-200 bg-stone-50/50 flex items-center justify-center gap-2 transition-all hover:bg-white hover:border-stone-300 group">
+                    <i data-lucide="book-open" class="w-5 h-5 text-stone-400 group-hover:text-stone-500 transition-colors"></i>
+                    <span class="text-sm text-stone-400 group-hover:text-stone-500 tracking-wide">记录今日阅读</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. 营养与糖分 (Nourish) -->
+        <section class="space-y-4 pt-4">
+            <div class="flex items-center gap-2 px-2">
+                <i data-lucide="utensils" class="w-4 h-4 text-stone-400"></i>
+                <h2 class="text-xs font-bold text-stone-400 uppercase tracking-widest">Nourish</h2>
+            </div>
+
+            <!-- Nutrition Grid -->
+            <div class="grid grid-cols-4 gap-3">
+                <button onclick="addNutrition('protein')" class="glass-card p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform group hover:bg-orange-50/50">
+                    <span class="text-xl">🥚</span>
+                    <span class="text-xs text-stone-500 group-hover:text-orange-600 transition-colors">蛋白质</span>
+                </button>
+                <button onclick="addNutrition('veggie')" class="glass-card p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform group hover:bg-green-50/50">
+                    <span class="text-xl">🥬</span>
+                    <span class="text-xs text-stone-500 group-hover:text-green-600 transition-colors">蔬菜</span>
+                </button>
+                <button onclick="addNutrition('fat')" class="glass-card p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform group hover:bg-amber-50/50">
+                    <span class="text-xl">🥑</span>
+                    <span class="text-xs text-stone-500 group-hover:text-amber-600 transition-colors">优质油</span>
+                </button>
+                <button onclick="addNutrition('fruit')" class="glass-card p-4 flex flex-col items-center gap-2 active:scale-95 transition-transform group hover:bg-rose-50/50">
+                    <span class="text-xl">🍒</span>
+                    <span class="text-xs text-stone-500 group-hover:text-rose-600 transition-colors">水果</span>
+                </button>
+            </div>
+
+            <!-- Sugar Quota (Chocolate) -->
+            <div class="glass-card p-6 bg-white/60">
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h3 class="font-normal text-sm text-stone-600">糖分额度 (Sugar)</h3>
+                        <p class="text-xs text-stone-400 mt-1">剩余结算 <span class="text-sage-500 font-medium">+50 pts/颗</span></p>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between px-2 gap-2">
+                    <div class="relative w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110" onclick="consumeSugar(0)" id="sugar-btn-0">
+                        <span class="text-3xl filter drop-shadow-sm">🍫</span>
+                    </div>
+                    <div class="relative w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110" onclick="consumeSugar(1)" id="sugar-btn-1">
+                        <span class="text-3xl filter drop-shadow-sm">🍫</span>
+                    </div>
+                    <div class="relative w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110" onclick="consumeSugar(2)" id="sugar-btn-2">
+                        <span class="text-3xl filter drop-shadow-sm">🍫</span>
+                    </div>
+                    <div class="relative w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110" onclick="consumeSugar(3)" id="sugar-btn-3">
+                        <span class="text-3xl filter drop-shadow-sm">🍫</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 手机与戒断 (Detox) -->
+        <section class="space-y-4 pt-4">
+            <div class="flex items-center gap-2 px-2">
+                <i data-lucide="smartphone-off" class="w-4 h-4 text-stone-400"></i>
+                <h2 class="text-xs font-bold text-stone-400 uppercase tracking-widest">Detox</h2>
+            </div>
+            
+            <div class="glass-card p-6 space-y-6">
+                <!-- Xiaohongshu -->
+                <div>
+                    <div class="flex justify-between mb-3">
+                        <span class="text-sm text-stone-500">小红书 <span class="text-xs text-stone-300 ml-1">&lt;2h 次日+50</span></span>
+                        <span id="xhsVal" class="text-sm font-mono text-sage-500">1h</span>
+                    </div>
+                    <input type="range" min="0" max="6" step="0.5" value="1" id="xhsSlider" oninput="updatePhone('xhs', this.value)">
+                </div>
+
+                <!-- Taobao -->
+                <div>
+                    <div class="flex justify-between mb-3">
+                        <span class="text-sm text-stone-500">淘宝/购物 <span class="text-xs text-stone-300 ml-1">&lt;2h 次日+50</span></span>
+                        <span id="taobaoVal" class="text-sm font-mono text-sage-500">1h</span>
+                    </div>
+                    <input type="range" min="0" max="6" step="0.5" value="1" id="taobaoSlider" oninput="updatePhone('taobao', this.value)">
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 欲望市集 (Market) -->
+        <section class="space-y-4 pt-4">
+            <div class="flex items-center gap-2 px-2">
+                <i data-lucide="gift" class="w-4 h-4 text-stone-400"></i>
+                <h2 class="text-xs font-bold text-stone-400 uppercase tracking-widest">Market</h2>
+            </div>
+
+            <!-- Ritual Button -->
+            <div id="ritual-container" class="hidden">
+                <button onclick="startRitual()" class="w-full h-16 glass-card manifest-btn flex items-center justify-center gap-2 text-sage-600 font-normal tracking-wider hover:bg-white/80 transition-colors">
+                    <i data-lucide="stars" class="w-5 h-5 opacity-50"></i>
+                    <span class="text-sm">开启许愿仪式</span>
+                </button>
+            </div>
+
+            <!-- Market List -->
+            <div id="market-list" class="space-y-4">
+                <!-- Tier 1 -->
+                <div class="glass-card p-5 hidden border-l-4 border-stone-200" id="card-light">
+                    <div id="reward-slot-light" class="flex justify-between items-center"></div>
+                </div>
+                <!-- Tier 2 -->
+                <div class="glass-card p-5 hidden border-l-4 border-stone-300" id="card-medium">
+                    <div id="reward-slot-medium" class="flex justify-between items-center"></div>
+                </div>
+                <!-- Tier 3 -->
+                <div class="glass-card p-5 hidden border-l-4 border-stone-400" id="card-heavy">
+                    <div id="reward-slot-heavy" class="flex justify-between items-center"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mood & Sleep -->
+        <section class="pt-8 pb-8 space-y-6">
+             <div class="glass-card p-5 flex justify-between items-center px-6">
+                <button onclick="setMood(1)" class="mood-btn text-2xl" title="焦虑/低落">🌧️</button>
+                <button onclick="setMood(2)" class="mood-btn text-2xl" title="疲惫">☁️</button>
+                <button onclick="setMood(3)" class="mood-btn text-2xl" title="平静">🌱</button>
+                <button onclick="setMood(4)" class="mood-btn text-2xl" title="愉悦">☀️</button>
+                <button onclick="setMood(5)" class="mood-btn text-2xl" title="能量爆棚">✨</button>
+            </div>
+
+            <button onclick="sleepMode()" class="w-full py-5 rounded-xl bg-stone-600 text-stone-100 shadow-lg hover:bg-stone-700 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="moon" class="w-5 h-5"></i>
+                <span class="tracking-widest font-light text-sm">晚安结算</span>
+            </button>
+        </section>
+
+    </div>
+
+    <!-- Project Creation Modal -->
+    <div id="projectModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-stone-200/50 backdrop-blur-sm" onclick="closeProjectModal()"></div>
+        <div class="glass-card bg-white p-8 max-w-sm w-full relative z-10 animate-pop border border-stone-100 shadow-xl max-h-[85vh] overflow-y-auto project-scroll">
+            <div class="text-center mb-6">
+                <i data-lucide="map" class="w-8 h-8 text-stone-400 mx-auto mb-2"></i>
+                <h3 class="text-base font-normal text-stone-600 tracking-widest uppercase">开启新的航行</h3>
+                <p class="text-xs text-stone-400 mt-1">定义终点，然后拆解路径</p>
+            </div>
+            
+            <div class="space-y-5">
+                <!-- Main Info -->
+                <div class="space-y-3">
+                    <label class="text-xs text-stone-400 font-bold block uppercase tracking-wide">项目名称 (Project Name)</label>
+                    <input type="text" id="new-proj-title" placeholder="如: 期末论文 / 雅思备考..." class="w-full py-2 border-b border-stone-200 bg-transparent text-stone-600 text-sm focus:border-sage-400 focus:outline-none placeholder-stone-300 transition-colors">
+                </div>
+                
+                <div class="space-y-3">
+                    <label class="text-xs text-stone-400 font-bold block uppercase tracking-wide">截止日期 (Deadline)</label>
+                    <input type="date" id="new-proj-ddl" class="w-full py-2 border-b border-stone-200 bg-transparent text-stone-600 text-sm focus:border-sage-400 focus:outline-none">
+                </div>
+
+                <!-- Breakdown -->
+                <div class="pt-4 border-t border-stone-50">
+                    <label class="text-xs text-sage-500 font-bold block uppercase tracking-wide mb-3">任务拆解 (Breakdown)</label>
+                    <div class="space-y-3" id="new-proj-steps">
+                        <input type="text" placeholder="步骤 1..." class="w-full py-2 border-b border-stone-100 bg-transparent text-stone-500 text-sm focus:border-stone-300 focus:outline-none placeholder-stone-200">
+                        <input type="text" placeholder="步骤 2..." class="w-full py-2 border-b border-stone-100 bg-transparent text-stone-500 text-sm focus:border-stone-300 focus:outline-none placeholder-stone-200">
+                        <input type="text" placeholder="步骤 3..." class="w-full py-2 border-b border-stone-100 bg-transparent text-stone-500 text-sm focus:border-stone-300 focus:outline-none placeholder-stone-200">
+                        <input type="text" placeholder="步骤 4..." class="w-full py-2 border-b border-stone-100 bg-transparent text-stone-500 text-sm focus:border-stone-300 focus:outline-none placeholder-stone-200">
+                        <input type="text" placeholder="步骤 5..." class="w-full py-2 border-b border-stone-100 bg-transparent text-stone-500 text-sm focus:border-stone-300 focus:outline-none placeholder-stone-200">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8 pt-4 border-t border-stone-100">
+                <button onclick="closeProjectModal()" class="text-stone-400 text-sm hover:text-stone-600 transition-colors">取消</button>
+                <button onclick="addNewProject()" class="px-6 py-2 bg-stone-600 text-white rounded-xl text-sm font-normal tracking-wide shadow-md hover:bg-stone-700 transition-all">确认启航</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ritual/Edit Modal -->
+    <div id="ritualModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-stone-200/50 backdrop-blur-sm" onclick="closeRitualModal()"></div>
+        <div class="glass-card bg-white p-8 max-w-sm w-full relative z-10 animate-pop border border-stone-100">
+            <div class="text-center mb-8">
+                <i data-lucide="sparkles" class="w-6 h-6 text-stone-400 mx-auto mb-3"></i>
+                <h3 class="text-sm font-normal text-stone-600 tracking-widest uppercase">许愿清单</h3>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="text-xs text-stone-400 font-bold mb-1 block uppercase tracking-wide">Level 1 · 小确幸 (300)</label>
+                    <input type="text" id="input-light" placeholder="大约需积累 1 天..." class="w-full py-2 border-b border-stone-200 bg-transparent text-stone-600 text-sm focus:border-stone-400 focus:outline-none placeholder-stone-300 transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs text-stone-400 font-bold mb-1 block uppercase tracking-wide">Level 2 · 中级快乐 (1000)</label>
+                    <input type="text" id="input-medium" placeholder="大约需积累 3-4 天..." class="w-full py-2 border-b border-stone-200 bg-transparent text-stone-600 text-sm focus:border-stone-400 focus:outline-none placeholder-stone-300 transition-colors">
+                </div>
+                <div>
+                    <label class="text-xs text-stone-400 font-bold mb-1 block uppercase tracking-wide">Level 3 · 终极愿望 (2500)</label>
+                    <input type="text" id="input-heavy" placeholder="大约需积累 1 周..." class="w-full py-2 border-b border-stone-200 bg-transparent text-stone-600 text-sm focus:border-stone-400 focus:outline-none placeholder-stone-300 transition-colors">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8">
+                <button onclick="closeRitualModal()" class="text-stone-400 text-sm hover:text-stone-600 transition-colors">取消</button>
+                <button onclick="saveRitual()" class="px-6 py-2 bg-stone-600 text-white rounded-xl text-sm font-normal tracking-wide shadow-md hover:bg-stone-700 transition-all">保存愿望</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div id="msgModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-stone-200/50 backdrop-blur-sm" onclick="closeMsgModal()"></div>
+        <div class="glass-card bg-white p-8 max-w-sm w-full relative z-10 animate-pop text-center border border-stone-100">
+            <div id="modalIcon" class="text-4xl mb-4">✨</div>
+            <h3 id="modalTitle" class="text-base font-bold text-stone-600 mb-3 tracking-wide"></h3>
+            <p id="modalBody" class="text-stone-500 text-sm leading-loose mb-8 font-light"></p>
+            <button onclick="closeMsgModal()" class="px-6 py-2 rounded-full border border-stone-300 text-stone-500 text-sm hover:bg-stone-50 hover:text-stone-700 transition-all">
+                好的，NN 知道了
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const REWARD_TIERS = {
+            light: { cost: 300 },
+            medium: { cost: 1000 },
+            heavy: { cost: 2500 }
+        };
+
+        const todayStr = new Date().toDateString();
+
+        // --- State ---
+        let state = {
+            points: 0,
+            date: todayStr,
+            projects: [], 
+            growth: {
+                reading: false, 
+                // Initialize with 1 empty task
+                hobbies: { tasks: [""], done: [false] }
+            },
+            sugarConsumed: [false, false, false, false], 
+            phone: { xhs: 1, taobao: 1 },
+            rewards: { light: null, medium: null, heavy: null },
+            mood: 0
+        };
+
+        // --- Initialization ---
+        function init() {
+            lucide.createIcons();
+            document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('zh-CN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            loadState();
+            checkNewDay();
+            render();
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('inner_garden_state_v8_nn');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state = { ...state, ...parsed };
+                // Ensure hobbies structure is robust if coming from old version
+                if (!state.growth.hobbies || !Array.isArray(state.growth.hobbies.tasks)) {
+                    state.growth.hobbies = { tasks: [""], done: [false] };
+                }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('inner_garden_state_v8_nn', JSON.stringify(state));
+            render();
+        }
+
+        function checkNewDay() {
+            if (state.date !== todayStr) {
+                let bonus = 0;
+                let report = [];
+
+                // Sugar Bonus
+                const sugarsKept = state.sugarConsumed.filter(x => !x).length;
+                if (sugarsKept > 0) {
+                    const sugarBonus = sugarsKept * 50;
+                    bonus += sugarBonus;
+                    report.push(`🍬 糖分控制: +${sugarBonus}`);
+                }
+
+                // Phone Bonus
+                if (state.phone.xhs < 2) {
+                    bonus += 50;
+                    report.push(`📱 小红书戒断: +50`);
+                }
+                if (state.phone.taobao < 2) {
+                    bonus += 50;
+                    report.push(`🛍️ 淘宝戒断: +50`);
+                }
+
+                if (bonus > 0) {
+                    state.points += bonus;
+                    setTimeout(() => {
+                        showModal("早安，NN", `新的一天开始了。<br>昨日的回馈已送达：<br><br>${report.join('<br>')}<br><br>总计: <b>+${bonus} PTS</b>`, "🎁");
+                    }, 1000);
+                }
+
+                // Reset Logic (Exclude Projects)
+                state.date = todayStr;
+                
+                // Reset daily tasks status but keep the list for hobbies
+                state.growth.hobbies.done = state.growth.hobbies.done.map(() => false);
+                state.growth.reading = false; 
+                
+                state.sugarConsumed = [false, false, false, false];
+                state.phone = { xhs: 0, taobao: 0 }; 
+                state.mood = 0;
+                
+                saveState();
+            }
+        }
+
+        // --- Rendering ---
+        function render() {
+            document.getElementById('totalPoints').innerText = state.points;
+            
+            // 1. Projects
+            renderProjects();
+
+            // 2. Daily Growth
+            renderGrowthList('hobbies', 'list-hobbies');
+            renderReading();
+
+            // 3. Render Sugar
+            state.sugarConsumed.forEach((eaten, i) => {
+                const btn = document.getElementById(`sugar-btn-${i}`);
+                if (eaten) {
+                    btn.innerHTML = ''; 
+                    btn.classList.add('opacity-0', 'pointer-events-none');
+                } else {
+                    btn.innerHTML = '<span class="text-3xl filter drop-shadow-sm">🍫</span>';
+                    btn.classList.remove('opacity-0', 'pointer-events-none');
+                }
+            });
+
+            // 4. Render Phone
+            document.getElementById('xhsSlider').value = state.phone.xhs;
+            document.getElementById('xhsVal').innerText = state.phone.xhs + 'h';
+            updatePhoneColor('xhsVal', state.phone.xhs);
+            document.getElementById('taobaoSlider').value = state.phone.taobao;
+            document.getElementById('taobaoVal').innerText = state.phone.taobao + 'h';
+            updatePhoneColor('taobaoVal', state.phone.taobao);
+
+            // 5. Render Market
+            renderMarket();
+
+            // 6. Mood
+            document.querySelectorAll('.mood-btn').forEach((btn, i) => {
+                if (i + 1 === state.mood) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            lucide.createIcons();
+        }
+
+        // --- Projects Render ---
+        function renderProjects() {
+            const container = document.getElementById('projects-container');
+            container.innerHTML = '';
+
+            state.projects.forEach((proj, pIndex) => {
+                const projCard = document.createElement('div');
+                projCard.className = "glass-card p-6 relative group mb-4";
+                
+                let tasksHtml = '';
+                proj.tasks.forEach((taskName, tIndex) => {
+                    if(!taskName) return; 
+
+                    const isDone = proj.done[tIndex];
+                    tasksHtml += `
+                        <div class="flex items-center gap-3 group/task">
+                            <div onclick="toggleProjectTask(${pIndex}, ${tIndex})" class="w-4 h-4 rounded-full border ${isDone ? 'border-stone-500 bg-stone-500' : 'border-stone-300'} flex items-center justify-center cursor-pointer transition-colors flex-shrink-0">
+                                ${isDone ? '<i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>' : ''}
+                            </div>
+                            <span class="text-sm ${isDone ? 'text-stone-400 line-through opacity-70' : 'text-stone-600'} flex-1 py-1">${taskName}</span>
+                        </div>
+                    `;
+                });
+
+                projCard.innerHTML = `
+                    <div class="mb-4 space-y-1">
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-stone-600 font-medium text-base">${proj.title || "未命名项目"}</h3>
+                            <button onclick="deleteProject(${pIndex})" class="text-stone-200 hover:text-red-300 transition-colors p-1"><i data-lucide="x" class="w-3 h-3"></i></button>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-stone-400">
+                            <i data-lucide="calendar" class="w-3 h-3"></i>
+                            <span>DDL: ${proj.ddl || "无"}</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3 pl-1">
+                        ${tasksHtml || '<p class="text-xs text-stone-300 italic">暂无子任务</p>'}
+                    </div>
+                `;
+                container.appendChild(projCard);
+            });
+        }
+
+        // --- Growth Render ---
+        function renderGrowthList(cat, elementId) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            // Hobbies are now dynamic
+            state.growth[cat].tasks.forEach((taskName, i) => {
+                const isDone = state.growth[cat].done[i];
+                const row = document.createElement('div');
+                row.className = "flex items-center gap-3 group";
+                row.innerHTML = `
+                    <div onclick="toggleGrowthTask('${cat}', ${i})" class="w-4 h-4 rounded-full border ${isDone ? 'border-sage-500 bg-sage-500' : 'border-stone-300'} flex items-center justify-center cursor-pointer transition-colors flex-shrink-0">
+                        ${isDone ? '<i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>' : ''}
+                    </div>
+                    <span contenteditable="true" placeholder="点击添加..." onblur="saveGrowthTaskName('${cat}', ${i}, this.innerText)" class="text-sm ${isDone ? 'text-sage-500 line-through opacity-70' : 'text-stone-600'} outline-none flex-1 border-b border-transparent hover:border-stone-200 transition-colors py-1">${taskName}</span>
+                    <button onclick="deleteHobbyTask(${i})" class="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-300 transition-opacity p-1">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function renderReading() {
+            const btn = document.getElementById('reading-btn');
+            if (state.growth.reading) {
+                btn.className = "w-full h-14 rounded-xl border border-sage-200 bg-sage-50 flex items-center justify-center gap-2 transition-all";
+                btn.innerHTML = `
+                    <i data-lucide="check" class="w-5 h-5 text-sage-600"></i>
+                    <span class="text-sm text-sage-600 font-normal">今日已阅读 (+30)</span>
+                `;
+            } else {
+                btn.className = "w-full h-14 rounded-xl border border-stone-200 bg-stone-50/50 flex items-center justify-center gap-2 transition-all hover:bg-white hover:border-stone-300 group";
+                btn.innerHTML = `
+                    <i data-lucide="book-open" class="w-5 h-5 text-stone-400 group-hover:text-stone-500 transition-colors"></i>
+                    <span class="text-sm text-stone-400 group-hover:text-stone-500 tracking-wide">记录今日阅读</span>
+                `;
+            }
+        }
+
+        function renderMarket() {
+            const hasEmptySlot = !state.rewards.light || !state.rewards.medium || !state.rewards.heavy;
+            const ritualBtn = document.getElementById('ritual-container');
+            
+            if (hasEmptySlot) {
+                ritualBtn.classList.remove('hidden');
+            } else {
+                ritualBtn.classList.add('hidden');
+            }
+
+            renderRewardCard('light');
+            renderRewardCard('medium');
+            renderRewardCard('heavy');
+        }
+
+        function renderRewardCard(tier) {
+            const card = document.getElementById(`card-${tier}`);
+            const slot = document.getElementById(`reward-slot-${tier}`);
+            const rewardName = state.rewards[tier];
+            const config = REWARD_TIERS[tier];
+
+            if (rewardName) {
+                card.classList.remove('hidden');
+                const canAfford = state.points >= config.cost;
+                slot.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden w-full">
+                        <button onclick="editReward('${tier}')" class="text-stone-300 hover:text-stone-500 transition-colors flex-shrink-0">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        </button>
+                        <span class="text-stone-600 font-normal text-sm truncate flex-1">${rewardName}</span>
+                        <button onclick="redeemReward('${tier}')" class="px-4 py-1.5 rounded-lg text-xs tracking-wide transition-all whitespace-nowrap flex-shrink-0 ${canAfford ? 'bg-sage-500 text-white hover:bg-sage-600 shadow-sm' : 'bg-stone-100 text-stone-400 cursor-not-allowed'}">
+                            兑换
+                        </button>
+                    </div>
+                `;
+            } else {
+                card.classList.add('hidden'); 
+            }
+        }
+
+        function updatePhoneColor(id, val) {
+            const el = document.getElementById(id);
+            if (val < 2) el.className = "text-sm font-mono text-sage-500";
+            else if (val < 4) el.className = "text-sm font-mono text-stone-400";
+            else el.className = "text-sm font-mono text-stone-400"; 
+        }
+
+        // --- Interaction Logic ---
+
+        // Project Modal & Logic
+        function openProjectModal() {
+            document.getElementById('new-proj-title').value = "";
+            document.getElementById('new-proj-ddl').value = "";
+            // Clear steps inputs
+            const stepsContainer = document.getElementById('new-proj-steps');
+            stepsContainer.querySelectorAll('input').forEach(input => input.value = "");
+            
+            document.getElementById('projectModal').classList.remove('hidden');
+        }
+
+        function closeProjectModal() {
+            document.getElementById('projectModal').classList.add('hidden');
+        }
+
+        function addNewProject() {
+            const title = document.getElementById('new-proj-title').value.trim();
+            const ddl = document.getElementById('new-proj-ddl').value;
+            
+            // Gather non-empty steps
+            const tasks = [];
+            document.getElementById('new-proj-steps').querySelectorAll('input').forEach(input => {
+                const val = input.value.trim();
+                if(val) tasks.push(val);
+            });
+
+            if(!title) {
+                alert("请至少输入项目名称");
+                return;
+            }
+
+            state.projects.push({
+                id: Date.now(),
+                title: title,
+                ddl: ddl,
+                tasks: tasks,
+                done: new Array(tasks.length).fill(false)
+            });
+
+            saveState();
+            closeProjectModal();
+            render(); 
+        }
+
+        function deleteProject(index) {
+            if(confirm("确定要删除这个项目吗？")) {
+                state.projects.splice(index, 1);
+                saveState();
+            }
+        }
+
+        function toggleProjectTask(projIndex, taskIndex) {
+            const proj = state.projects[projIndex];
+            const isDone = proj.done[taskIndex];
+            
+            if (!isDone) {
+                proj.done[taskIndex] = true;
+                addPoints(20, event.currentTarget);
+            } else {
+                proj.done[taskIndex] = false;
+            }
+            saveState();
+        }
+
+        // Hobbies Dynamic Logic
+        function addHobbyTask() {
+            state.growth.hobbies.tasks.push("");
+            state.growth.hobbies.done.push(false);
+            saveState();
+        }
+
+        function deleteHobbyTask(index) {
+            // Optional: confirm if it has text
+            if (state.growth.hobbies.tasks[index] && !confirm("确定要删除这项兴趣吗？")) return;
+            
+            state.growth.hobbies.tasks.splice(index, 1);
+            state.growth.hobbies.done.splice(index, 1);
+            saveState();
+        }
+
+        function saveGrowthTaskName(cat, index, val) {
+            state.growth[cat].tasks[index] = val.trim();
+            saveState();
+        }
+
+        function toggleGrowthTask(cat, index) {
+            const isDone = state.growth[cat].done[index];
+            state.growth[cat].done[index] = !isDone;
+            addPoints(isDone ? -20 : 20, event.currentTarget);
+            saveState();
+        }
+
+        // Reading
+        function toggleReading() {
+            const isDone = state.growth.reading;
+            state.growth.reading = !isDone;
+            addPoints(isDone ? -30 : 30, document.getElementById('reading-btn'));
+            saveState();
+        }
+
+        // Sugar
+        function consumeSugar(index) {
+            if (state.sugarConsumed[index]) return;
+            if (confirm("NN, 确定要消耗这份糖分额度吗？如果忍住到明天 +50 PTS。")) {
+                state.sugarConsumed[index] = true;
+                saveState();
+            }
+        }
+
+        function addNutrition(type) {
+            addPoints(15, event.currentTarget);
+            const btn = event.currentTarget;
+            btn.classList.add('scale-95');
+            setTimeout(() => btn.classList.remove('scale-95'), 200);
+            saveState();
+        }
+
+        function updatePhone(type, val) {
+            state.phone[type] = parseFloat(val);
+            render();
+            clearTimeout(window.phoneSaveTimeout);
+            window.phoneSaveTimeout = setTimeout(saveState, 1000);
+        }
+
+        function startRitual() {
+            document.getElementById('input-light').value = state.rewards.light || "";
+            document.getElementById('input-medium').value = state.rewards.medium || "";
+            document.getElementById('input-heavy').value = state.rewards.heavy || "";
+            document.getElementById('ritualModal').classList.remove('hidden');
+        }
+
+        function editReward(tier) {
+            startRitual(); // Reuse the same modal
+        }
+
+        function closeRitualModal() {
+            document.getElementById('ritualModal').classList.add('hidden');
+        }
+
+        function saveRitual() {
+            const light = document.getElementById('input-light').value.trim();
+            const medium = document.getElementById('input-medium').value.trim();
+            const heavy = document.getElementById('input-heavy').value.trim();
+
+            if (light) state.rewards.light = light;
+            if (medium) state.rewards.medium = medium;
+            if (heavy) state.rewards.heavy = heavy;
+
+            saveState();
+            closeRitualModal();
+            showModal("愿望已确认", "NN, 愿望已更新。<br>用日常的秩序去浇灌它们吧。", "✨");
+        }
+
+        function redeemReward(tier) {
+            const cost = REWARD_TIERS[tier].cost;
+            const name = state.rewards[tier];
+            if (state.points >= cost) {
+                if (confirm(`确定消耗 ${cost} PTS 兑换 "${name}" 吗？`)) {
+                    state.points -= cost;
+                    state.rewards[tier] = null; // Clear slot
+                    saveState();
+                    showModal("兑换成功", `NN, 你已获得: <b>${name}</b><br>请尽情享受这份奖赏。<br>随后可以开启新的许愿。`, "🎁");
+                }
+            }
+        }
+
+        function addPoints(amount, element) {
+            state.points += amount;
+            const floatEl = document.createElement('div');
+            floatEl.innerText = amount > 0 ? `+${amount}` : amount;
+            floatEl.className = `point-float ${amount < 0 ? 'point-deduct' : ''}`;
+            const rect = element.getBoundingClientRect();
+            floatEl.style.left = (rect.left + rect.width / 2 - 10) + 'px';
+            floatEl.style.top = (rect.top) + 'px';
+            document.body.appendChild(floatEl);
+            setTimeout(() => floatEl.remove(), 1000);
+            
+            const totalEl = document.getElementById('totalPoints');
+            totalEl.classList.add('text-sage-600');
+            setTimeout(() => totalEl.classList.remove('text-sage-600'), 300);
+            render();
+        }
+
+        function setMood(m) {
+            state.mood = m;
+            saveState();
+        }
+
+        // --- AI Summary Logic ---
+        function generateReport() {
+            // 1. Analyze Effort
+            let tasksDone = 0;
+            state.projects.forEach(p => {
+                p.done.forEach(d => { if(d) tasksDone++ });
+            });
+            state.growth.hobbies.done.forEach(d => { if(d) tasksDone++ });
+            if(state.growth.reading) tasksDone++;
+            
+            // 2. Analyze Discipline
+            const sugarKept = state.sugarConsumed.filter(x => !x).length;
+
+            // 3. Construct Narrative
+            let intro = "";
+            const hours = new Date().getHours();
+            if (hours < 12) intro = "NN，上午好。记录当下，即是秩序的开始。";
+            else if (hours < 18) intro = "NN，下午好。在忙碌中，也别忘了照顾好心情。";
+            else intro = "NN，夜深了。这里是你宁静的港湾。";
+
+            let body = "";
+
+            // Effort Text
+            if (tasksDone >= 5) {
+                body += "今天你的花园里生机勃勃，你推进了长期任务，也照顾了兴趣，从容且有力。<br>";
+            } else if (tasksDone >= 1) {
+                body += "你今天种下了一些种子，保持着自己的步调，这样很好。<br>";
+            } else {
+                body += "今天是休养生息的一天。土壤需要休息，你也是。<br>";
+            }
+
+            // Reading
+            if (state.growth.reading) {
+                body += "📖 很高兴你留出了时间给阅读，这是灵魂的养分。<br>";
+            }
+
+            // Sugar
+            if (sugarKept === 4) {
+                body += "🍫 糖分控制得很完美，小猫的自控力非常迷人。<br>";
+            } else if (sugarKept >= 2) {
+                body += "🍫 糖分控制得不错，巧克力让小猫开心。<br>";
+            }
+
+            let closing = "<br>数据已保存。晚安。";
+            return intro + "<br><br>" + body + closing;
+        }
+
+        function sleepMode() {
+            const summary = generateReport();
+            showModal("✨ 晚间回响", summary, "🌙");
+        }
+
+        function showModal(title, body, icon) {
+            document.getElementById('modalTitle').innerHTML = title;
+            document.getElementById('modalBody').innerHTML = body;
+            document.getElementById('modalIcon').innerText = icon;
+            document.getElementById('msgModal').classList.remove('hidden');
+        }
+
+        function closeMsgModal() {
+            document.getElementById('msgModal').classList.add('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>
